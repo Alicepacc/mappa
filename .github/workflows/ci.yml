@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Deterministic installs; no interactive prompts.
+  CI: true
+
+jobs:
+  check:
+    name: lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Ordered as SPEC §9 specifies. Each step runs even if an earlier one
+      # failed, so one PR comment shows every problem rather than the first.
+      - name: Lint
+        id: lint
+        run: pnpm lint
+
+      - name: Typecheck
+        if: ${{ !cancelled() }}
+        run: pnpm typecheck
+
+      - name: Test
+        if: ${{ !cancelled() }}
+        run: pnpm test
+
+      - name: Build
+        if: ${{ !cancelled() }}
+        run: pnpm build
+
+      # SPEC §4: styles are validated against the MapLibre style spec in CI.
+      - name: Validate map styles
+        if: ${{ !cancelled() }}
+        run: pnpm style:validate
+
+      - name: Check formatting
+        if: ${{ !cancelled() }}
+        run: pnpm format:check
+
+      - name: Report frontend bundle size
+        if: ${{ !cancelled() }}
+        run: |
+          echo "### Frontend bundle" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | Raw | Gzip |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ---- | --- | ---- |" >> "$GITHUB_STEP_SUMMARY"
+          for f in apps/web/dist/assets/*.js apps/web/dist/assets/*.css; do
+            [ -e "$f" ] || continue
+            raw=$(stat -c%s "$f")
+            gz=$(gzip -c "$f" | wc -c)
+            printf '| `%s` | %s B | %s B |\n' "$(basename "$f")" "$raw" "$gz" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+  compose:
+    name: docker compose smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # SPEC §9: `docker compose up` must run the milestone end to end. With no
+      # data built, that means the gateway answers /api/health and reports its
+      # coverage as inexact — which is exactly what this asserts.
+      - name: Start the stack
+        run: |
+          cp infra/.env.example infra/.env
+          docker compose -f infra/docker-compose.yml up --build -d gateway tiles
+
+      - name: Wait for the gateway
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/api/health >/dev/null 2>&1; then
+              echo "gateway is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "gateway did not come up in 30s" >&2
+          docker compose -f infra/docker-compose.yml logs gateway >&2
+          exit 1
+
+      - name: Assert the API contract
+        run: |
+          set -euo pipefail
+
+          echo "— /api/health"
+          curl -fsS http://localhost:8080/api/health | tee /dev/stderr | jq -e '.version and .services'
+
+          echo "— /api/coverage falls back to the bbox before the pipeline runs"
+          curl -fsS http://localhost:8080/api/coverage | jq -e '.properties.exact == false'
+
+          echo "— an out-of-coverage waypoint is rejected (SPEC §1.0)"
+          code=$(curl -s -o /tmp/route.json -w '%{http_code}' \
+            -X POST http://localhost:8080/api/route \
+            -H 'content-type: application/json' \
+            -d '{"mode":"hiking","waypoints":[{"id":"a","location":[11.77,46.48]},{"id":"b","location":[2.35,48.86]}]}')
+          test "$code" = "422"
+          jq -e '.error.code == "OUT_OF_COVERAGE"' /tmp/route.json
+
+          echo "— a malformed request is rejected"
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/search)
+          test "$code" = "400"
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v

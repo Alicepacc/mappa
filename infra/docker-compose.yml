@@ -1,0 +1,124 @@
+# Local stack for the whole application (SPEC §2.2).
+#
+# Milestone profiles keep `docker compose up` meaningful at every stage:
+#
+#   docker compose up                     web + gateway + tiles   (M0 → M3)
+#   docker compose --profile search up    adds Photon             (M4)
+#   docker compose --profile routing up   adds Valhalla           (M5)
+#   docker compose --profile full up      everything
+#
+# Every service reads its data from the pipeline output directory; nothing here
+# reaches a third-party map service at runtime (SPEC §0.1).
+
+name: mappa
+
+services:
+  # --------------------------------------------------------------------------
+  # Static tile host: PMTiles, glyphs and sprites over HTTP range requests.
+  # --------------------------------------------------------------------------
+  tiles:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - '${TILES_PORT:-8081}:80'
+    volumes:
+      - ./caddy/Caddyfile.tiles:/etc/caddy/Caddyfile:ro
+      - ${DATA_DIR:-../data}:/data:ro
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost/']
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # The single public API. Proxies and normalises the services below.
+  # --------------------------------------------------------------------------
+  gateway:
+    build:
+      context: ..
+      dockerfile: infra/gateway.Dockerfile
+    restart: unless-stopped
+    ports:
+      - '${GATEWAY_PORT:-8080}:8080'
+    environment:
+      APP_NAME: ${APP_NAME:-Mappa}
+      APP_VERSION: ${APP_VERSION:-0.0.0-m0}
+      AREA: ${AREA:-dev}
+      HOST: 0.0.0.0
+      PORT: '8080'
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATA_DIR: /data
+      TILES_URL: http://tiles:80
+      VALHALLA_URL: http://routing:8002
+      PHOTON_URL: http://geocoding:2322
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-120}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+    volumes:
+      - ${DATA_DIR:-../data}:/data:ro
+    depends_on:
+      tiles:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:8080/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # Frontend. Serves the SPA and reverse-proxies /api to the gateway.
+  # --------------------------------------------------------------------------
+  web:
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+      args:
+        VITE_APP_NAME: ${APP_NAME:-Mappa}
+        VITE_API_BASE: ${VITE_API_BASE:-}
+        VITE_TILE_BASE: ${VITE_TILE_BASE:-http://localhost:8081}
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-8000}:80'
+    volumes:
+      - ./caddy/Caddyfile.web:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - gateway
+
+  # --------------------------------------------------------------------------
+  # Routing (M5). Image and tile-build wiring are finalised in that milestone;
+  # pinned here so the topology is reviewable now.
+  # --------------------------------------------------------------------------
+  routing:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:3.5.1
+    profiles: ['routing', 'full']
+    restart: unless-stopped
+    ports:
+      - '${VALHALLA_PORT:-8002}:8002'
+    environment:
+      # The pipeline builds the graph; the container only serves it.
+      tile_urls: ''
+      build_tar: 'False'
+      serve_tiles: 'True'
+      use_tiles_ignore_pbf: 'True'
+    volumes:
+      - ${DATA_DIR:-../data}/valhalla:/custom_files
+
+  # --------------------------------------------------------------------------
+  # Geocoding (M4). Index built by the pipeline into data/photon.
+  # --------------------------------------------------------------------------
+  geocoding:
+    image: ghcr.io/komoot/photon:0.7.3
+    profiles: ['search', 'full']
+    restart: unless-stopped
+    ports:
+      - '${PHOTON_PORT:-2322}:2322'
+    volumes:
+      - ${DATA_DIR:-../data}/photon:/photon/photon_data

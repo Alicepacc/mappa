@@ -1,0 +1,65 @@
+# --- Dependencies ---
+node_modules/
+.pnpm-store/
+
+# --- Build output ---
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# --- Test / tooling output ---
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# --- Environment ---
+.env
+.env.*
+!.env.example
+infra/.env
+
+# --- Generated map data (NEVER commit: rebuilt by pipeline/) ---
+# See docs/pipeline.md. Everything under data/ is generated except the
+# checked-in placeholders listed below.
+data/*
+!data/.gitkeep
+!data/README.md
+
+# Large geodata artefacts, wherever they land
+*.osm.pbf
+*.osm.pbf.md5
+*.osm.bz2
+*.pmtiles
+*.mbtiles
+*.tif
+*.tiff
+*.vrt
+*.hgt
+*.geotiff
+
+# Pipeline working directories
+pipeline/work/
+pipeline/cache/
+pipeline/out/
+
+# Routing / geocoding indexes
+valhalla_tiles/
+valhalla_tiles.tar
+*.valhalla
+photon_data/
+photon-db/
+
+# Generated glyphs & sprites (built from sources in packages/icons)
+packages/style/glyphs/
+packages/icons/dist/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

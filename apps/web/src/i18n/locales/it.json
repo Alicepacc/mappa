@@ -1,0 +1,43 @@
+{
+  "app": {
+    "tagline": "Mappa outdoor d’Italia, da dati aperti",
+    "skipToContent": "Vai al contenuto"
+  },
+  "search": {
+    "placeholder": "Cerca luoghi, rifugi, sentieri…",
+    "label": "Cerca sulla mappa"
+  },
+  "categories": {
+    "ristoranti": "Ristoranti",
+    "alloggi": "Alloggi",
+    "rifugi": "Rifugi",
+    "punti_panoramici": "Punti panoramici",
+    "parcheggi": "Parcheggi",
+    "fontane": "Fontane",
+    "vie_ferrate": "Vie ferrate",
+    "gite": "Gite"
+  },
+  "layers": {
+    "base": "Base",
+    "turistica": "Turistica",
+    "invernale": "Invernale",
+    "aerea": "Aerea"
+  },
+  "status": {
+    "scaffold": "Struttura del progetto (M0)",
+    "scaffoldBody": "La mappa arriva in M2. Questa schermata verifica che shell, temi, i18n e stato URL funzionino.",
+    "gatewayOk": "Gateway raggiungibile",
+    "gatewayDown": "Gateway non raggiungibile",
+    "checking": "Verifica in corso…",
+    "coverageExact": "Poligono di copertura caricato",
+    "coverageFallback": "Copertura approssimata dal riquadro d’Italia — esegui la pipeline"
+  },
+  "attribution": {
+    "osm": "Dati © contributori OpenStreetMap (ODbL)"
+  },
+  "language": {
+    "label": "Lingua",
+    "it": "Italiano",
+    "en": "English"
+  }
+}

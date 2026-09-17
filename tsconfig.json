@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/style" },
+    { "path": "./packages/icons" },
+    { "path": "./apps/gateway" },
+    { "path": "./apps/web" }
+  ]
+}

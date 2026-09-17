@@ -1,0 +1,48 @@
+name: Feature request
+description: Propose something new
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is hard or impossible today? Describe the need, not the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+
+  - type: input
+    id: spec
+    attributes:
+      label: Related SPEC section
+      description: If the spec already covers this, which section?
+      placeholder: '§1.5'
+
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Which milestone does this belong to?
+      options:
+        - M1 — data pipeline
+        - M2 — web shell
+        - M3 — Turistica layer
+        - M4 — search
+        - M5 — routing
+        - M6 — winter and aerial
+        - M7 — my places and tools
+        - M8 — PWA and performance
+        - M9 — production build
+        - Not covered by the spec
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

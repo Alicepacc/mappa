@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 blocks postinstall scripts by default. esbuild needs its to place the
+# platform binary; nothing else in the tree requires one.
+onlyBuiltDependencies:
+  - esbuild

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+data/
+packages/icons/dist/
+packages/style/glyphs/
+playwright-report/
+test-results/
+
+# The project specification is the user's document — formatted as written.
+docs/SPEC.md

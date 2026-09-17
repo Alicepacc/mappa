@@ -1,0 +1,56 @@
+name: Bug report
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. See …
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: Map URL
+      description: >
+        The full URL from the address bar. It encodes the camera, layer and any
+        route, which usually reproduces the problem exactly.
+      placeholder: '?x=11.77&y=46.48&z=14&l=turistica'
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Data area
+      options: [dev, italy, not sure]
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        Browser: Firefox 141
+        OS: macOS 15.2
+        Commit: abc1234
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console or service logs
+      render: shell

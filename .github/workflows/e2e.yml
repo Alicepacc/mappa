@@ -1,0 +1,98 @@
+name: E2E
+
+# Builds AREA=dev data, brings the stack up and runs Playwright plus the
+# visual baselines (SPEC §6, §7).
+#
+# Manual dispatch only until M2: there is no map and no Playwright suite to run
+# before then, and a scheduled red X helps nobody. Add the `pull_request`
+# trigger in the M2 PR.
+on:
+  workflow_dispatch:
+    inputs:
+      area:
+        description: Area to build
+        type: choice
+        options: [dev, italy]
+        default: dev
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright (AREA=${{ inputs.area || 'dev' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      AREA: ${{ inputs.area || 'dev' }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The dev area is a fixed bbox, so the build is reproducible and worth
+      # caching. The key includes the pipeline sources: change a step, rebuild.
+      - name: Restore data cache
+        id: data-cache
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: mapdata-${{ env.AREA }}-${{ hashFiles('pipeline/**') }}
+          restore-keys: mapdata-${{ env.AREA }}-
+
+      - name: Build map data
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        run: make data AREA=$AREA
+
+      - name: Data summary
+        run: make data-summary AREA=$AREA >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start the stack
+        run: |
+          cp infra/.env.example infra/.env
+          sed -i "s/^AREA=.*/AREA=$AREA/" infra/.env
+          docker compose -f infra/docker-compose.yml --env-file infra/.env up --build -d
+
+      - name: Wait for the stack
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:8080/api/health >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          docker compose -f infra/docker-compose.yml logs >&2
+          exit 1
+
+      - name: Run Playwright
+        run: pnpm --filter @mappa/web run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ env.AREA }}
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 14
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v

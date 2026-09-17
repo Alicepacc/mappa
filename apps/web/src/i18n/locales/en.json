@@ -1,0 +1,43 @@
+{
+  "app": {
+    "tagline": "Outdoor map of Italy, built from open data",
+    "skipToContent": "Skip to content"
+  },
+  "search": {
+    "placeholder": "Search places, huts, trails…",
+    "label": "Search the map"
+  },
+  "categories": {
+    "ristoranti": "Restaurants",
+    "alloggi": "Accommodation",
+    "rifugi": "Mountain huts",
+    "punti_panoramici": "Viewpoints",
+    "parcheggi": "Parking",
+    "fontane": "Drinking water",
+    "vie_ferrate": "Via ferratas",
+    "gite": "Trips"
+  },
+  "layers": {
+    "base": "Base",
+    "turistica": "Outdoor",
+    "invernale": "Winter",
+    "aerea": "Aerial"
+  },
+  "status": {
+    "scaffold": "Project scaffold (M0)",
+    "scaffoldBody": "The map lands in M2. This screen verifies the shell, theming, i18n and URL state.",
+    "gatewayOk": "Gateway reachable",
+    "gatewayDown": "Gateway unreachable",
+    "checking": "Checking…",
+    "coverageExact": "Coverage polygon loaded",
+    "coverageFallback": "Coverage approximated from the Italy bounding box — run the pipeline"
+  },
+  "attribution": {
+    "osm": "Data © OpenStreetMap contributors (ODbL)"
+  },
+  "language": {
+    "label": "Language",
+    "it": "Italiano",
+    "en": "English"
+  }
+}

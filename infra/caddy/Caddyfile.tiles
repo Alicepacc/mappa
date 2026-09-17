@@ -1,0 +1,44 @@
+# Tile host (SPEC §2.2).
+#
+# PMTiles is a single file read over HTTP range requests, so a plain static file
+# server is the whole tile stack. Caddy's file_server supports ranges natively.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	root * /data
+
+	header {
+		# The client fetches tiles from a different origin than the app.
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+		Access-Control-Allow-Headers "Range, If-Match, If-None-Match"
+		Access-Control-Expose-Headers "Content-Length, Content-Range, ETag, Accept-Ranges"
+		Accept-Ranges "bytes"
+	}
+
+	@preflight method OPTIONS
+	respond @preflight 204
+
+	# Immutable artefacts: the pipeline writes a new file rather than mutating one.
+	@pmtiles path *.pmtiles
+	header @pmtiles Cache-Control "public, max-age=604800, immutable"
+
+	@glyphs path /glyphs/*
+	header @glyphs Cache-Control "public, max-age=604800, immutable"
+
+	@sprites path /sprites/*
+	header @sprites Cache-Control "public, max-age=604800, immutable"
+
+	file_server {
+		precompressed
+	}
+
+	log {
+		output stdout
+		format console
+		level WARN
+	}
+}
